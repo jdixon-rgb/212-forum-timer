@@ -1,0 +1,8 @@
+{
+  "name": "212 Timer",
+  "short_name": "212 Timer",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0c10",
+  "theme_color": "#0b0c10"
+}

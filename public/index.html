@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>212 Timer</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="212 Timer" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<meta name="theme-color" content="#0b0c10" />
+<link rel="manifest" href="manifest.json" />
+<style>
+  :root {
+    --bg: #0b0c10;
+    --panel: #15171c;
+    --accent: #3fa9f5;
+    --warn: #f5a623;
+    --done: #e5484d;
+    --text: #f4f5f7;
+    --muted: #9aa0a8;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    height: 100%;
+    overscroll-behavior: none;
+  }
+  #app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
+  }
+  header {
+    padding: 16px 0 8px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 20px;
+    margin: 0;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* ---- List view ---- */
+  #listView { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .timerCard {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .timerCard .info { flex: 1; min-width: 0; }
+  .timerCard .name {
+    font-size: 18px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .timerCard .sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .timerCard button.start {
+    background: var(--accent);
+    color: #04121f;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 12px 18px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .timerCard button.delete {
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    font-size: 22px;
+    padding: 8px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  #addBtn {
+    background: var(--panel);
+    border: 2px dashed #2a2d34;
+    color: var(--muted);
+    border-radius: 14px;
+    padding: 16px;
+    font-size: 17px;
+    font-weight: 600;
+    min-height: 56px;
+  }
+
+  /* ---- Add form ---- */
+  #addView { display: none; flex: 1; flex-direction: column; gap: 14px; padding-top: 8px; }
+  #addView label {
+    font-size: 14px;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+  #addView input {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid #2a2d34;
+    color: var(--text);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 18px;
+    min-height: 48px;
+  }
+  .row3 { display: flex; gap: 10px; }
+  .row3 > div { flex: 1; }
+  #addView .actions { display: flex; gap: 10px; margin-top: 8px; }
+  #addView button {
+    flex: 1;
+    min-height: 50px;
+    border-radius: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    border: none;
+  }
+  #saveTimerBtn { background: var(--accent); color: #04121f; }
+  #cancelAddBtn { background: var(--panel); color: var(--muted); }
+
+  /* ---- Run view ---- */
+  #runView {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: background 0.3s ease;
+  }
+  #runName { font-size: 20px; color: var(--muted); margin-bottom: 8px; }
+  #clock {
+    font-size: 22vw;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  #warnNote { font-size: 15px; color: var(--muted); margin-top: 10px; }
+  #runActions { display: flex; gap: 12px; margin-top: 28px; }
+  #runActions button {
+    min-height: 56px;
+    min-width: 100px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 700;
+    border: none;
+    padding: 0 22px;
+  }
+  #pauseBtn { background: var(--panel); color: var(--text); }
+  #resetBtn { background: var(--panel); color: var(--muted); }
+  #backBtn { background: transparent; color: var(--muted); border: none; font-size: 16px; padding: 10px; margin-top: 18px; }
+
+  .flashWarn #runView { background: var(--warn) !important; }
+  .flashWarn #clock { color: #241a00; }
+  .flashDone #runView { background: var(--done) !important; }
+  .flashDone #clock { color: #2a0506; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header><h1>212 Timer</h1></header>
+
+  <div id="listView"></div>
+
+  <div id="addView">
+    <div>
+      <label for="nameInput">Name</label>
+      <input id="nameInput" type="text" placeholder="e.g. Opening remarks" maxlength="40" />
+    </div>
+    <div class="row3">
+      <div>
+        <label for="minInput">Minutes</label>
+        <input id="minInput" type="number" inputmode="numeric" min="0" max="180" value="3" />
+      </div>
+      <div>
+        <label for="secInput">Seconds</label>
+        <input id="secInput" type="number" inputmode="numeric" min="0" max="59" value="0" />
+      </div>
+    </div>
+    <div>
+      <label for="warnInput">Warning, seconds before time's up (leave blank for none)</label>
+      <input id="warnInput" type="number" inputmode="numeric" min="0" max="3599" placeholder="e.g. 30" />
+    </div>
+    <div class="actions">
+      <button id="cancelAddBtn">Cancel</button>
+      <button id="saveTimerBtn">Save timer</button>
+    </div>
+  </div>
+
+  <div id="runView">
+    <div id="runName"></div>
+    <div id="clock">00:00</div>
+    <div id="warnNote"></div>
+    <div id="runActions">
+      <button id="pauseBtn">Pause</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+    <button id="backBtn">Back to timers</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORE_KEY = "212timers_v1";
+  var defaultTimers = [
+    { id: "default-3min", name: "3 minutes (warn at 0:30 left)", totalSec: 180, warnSec: 30 }
+  ];
+
+  function loadTimers() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) { saveTimers(defaultTimers); return defaultTimers.slice(); }
+      var parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : defaultTimers.slice();
+    } catch (e) { return defaultTimers.slice(); }
+  }
+  function saveTimers(list) {
+    localStorage.setItem(STORE_KEY, JSON.stringify(list));
+  }
+
+  var timers = loadTimers();
+
+  var listView = document.getElementById("listView");
+  var addView = document.getElementById("addView");
+  var runView = document.getElementById("runView");
+
+  var nameInput = document.getElementById("nameInput");
+  var minInput = document.getElementById("minInput");
+  var secInput = document.getElementById("secInput");
+  var warnInput = document.getElementById("warnInput");
+
+  var runName = document.getElementById("runName");
+  var clockEl = document.getElementById("clock");
+  var warnNote = document.getElementById("warnNote");
+  var pauseBtn = document.getElementById("pauseBtn");
+  var resetBtn = document.getElementById("resetBtn");
+
+  function fmt(totalSeconds) {
+    var m = Math.floor(totalSeconds / 60);
+    var s = totalSeconds % 60;
+    return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+  }
+
+  function renderList() {
+    listView.innerHTML = "";
+    timers.forEach(function (t) {
+      var card = document.createElement("div");
+      card.className = "timerCard";
+
+      var info = document.createElement("div");
+      info.className = "info";
+      var nameEl = document.createElement("div");
+      nameEl.className = "name";
+      nameEl.textContent = t.name;
+      var subEl = document.createElement("div");
+      subEl.className = "sub";
+      subEl.textContent = fmt(t.totalSec) + (t.warnSec ? " · warning " + fmt(t.warnSec) + " before end" : "");
+      info.appendChild(nameEl);
+      info.appendChild(subEl);
+
+      var startBtn = document.createElement("button");
+      startBtn.className = "start";
+      startBtn.textContent = "Start";
+      startBtn.onclick = function () { startTimer(t); };
+
+      var delBtn = document.createElement("button");
+      delBtn.className = "delete";
+      delBtn.textContent = "✕";
+      delBtn.setAttribute("aria-label", "Delete " + t.name);
+      delBtn.onclick = function () {
+        timers = timers.filter(function (x) { return x.id !== t.id; });
+        saveTimers(timers);
+        renderList();
+      };
+
+      card.appendChild(info);
+      card.appendChild(startBtn);
+      card.appendChild(delBtn);
+      listView.appendChild(card);
+    });
+
+    var addBtn = document.createElement("button");
+    addBtn.id = "addBtn";
+    addBtn.textContent = "+ New timer";
+    addBtn.onclick = showAddView;
+    listView.appendChild(addBtn);
+  }
+
+  function showView(which) {
+    listView.style.display = which === "list" ? "flex" : "none";
+    addView.style.display = which === "add" ? "flex" : "none";
+    runView.style.display = which === "run" ? "flex" : "none";
+  }
+
+  function showAddView() {
+    nameInput.value = "";
+    minInput.value = "3";
+    secInput.value = "0";
+    warnInput.value = "";
+    showView("add");
+  }
+
+  document.getElementById("cancelAddBtn").onclick = function () { showView("list"); };
+  document.getElementById("saveTimerBtn").onclick = function () {
+    var name = nameInput.value.trim();
+    var min = parseInt(minInput.value, 10) || 0;
+    var sec = parseInt(secInput.value, 10) || 0;
+    var total = min * 60 + sec;
+    if (!name || total <= 0) {
+      alert("Give it a name and a time longer than zero.");
+      return;
+    }
+    var warnRaw = warnInput.value.trim();
+    var warnSec = warnRaw === "" ? null : Math.max(0, Math.min(total, parseInt(warnRaw, 10) || 0));
+    timers.push({ id: "t" + Date.now(), name: name, totalSec: total, warnSec: warnSec });
+    saveTimers(timers);
+    renderList();
+    showView("list");
+  };
+
+  document.getElementById("backBtn").onclick = function () { stopAndReturn(); };
+
+  // ---- Run logic ----
+  var current = null;
+  var remaining = 0;
+  var tickHandle = null;
+  var running = false;
+  var warnFired = false;
+  var doneFired = false;
+  var wakeLock = null;
+
+  function requestWake() {
+    if ("wakeLock" in navigator) {
+      navigator.wakeLock.request("screen").then(function (lock) { wakeLock = lock; }).catch(function () {});
+    }
+  }
+  function releaseWake() {
+    if (wakeLock) { wakeLock.release().catch(function () {}); wakeLock = null; }
+  }
+
+  function startTimer(t) {
+    current = t;
+    remaining = t.totalSec;
+    warnFired = false;
+    doneFired = false;
+    running = true;
+    document.body.className = "";
+    runName.textContent = t.name;
+    warnNote.textContent = t.warnSec ? "Warning at " + fmt(t.warnSec) + " remaining" : "";
+    pauseBtn.textContent = "Pause";
+    updateClock();
+    showView("run");
+    requestWake();
+    clearTick();
+    tickHandle = setInterval(tick, 1000);
+  }
+
+  function clearTick() {
+    if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
+  }
+
+  function tick() {
+    if (!running) return;
+    remaining -= 1;
+    if (remaining <= 0) {
+      remaining = 0;
+      updateClock();
+      if (!doneFired) { doneFired = true; onDone(); }
+      clearTick();
+      return;
+    }
+    if (current.warnSec && !warnFired && remaining <= current.warnSec) {
+      warnFired = true;
+      onWarn();
+    }
+    updateClock();
+  }
+
+  function updateClock() {
+    clockEl.textContent = fmt(remaining);
+  }
+
+  function onWarn() {
+    flash("flashWarn", 900);
+    beep(2, 220, 880);
+    if (navigator.vibrate) navigator.vibrate([150, 100, 150]);
+  }
+
+  function onDone() {
+    flash("flashDone", 4000);
+    beep(4, 260, 520);
+    if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 250, 120, 250]);
+    releaseWake();
+  }
+
+  function flash(cls, duration) {
+    document.body.classList.add(cls);
+    setTimeout(function () { document.body.classList.remove(cls); }, duration);
+  }
+
+  var audioCtx = null;
+  function beep(times, gapMs, freq) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var i = 0;
+      function playOne() {
+        if (i >= times) return;
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.value = 0.0001;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        var now = audioCtx.currentTime;
+        gain.gain.exponentialRampToValueAtTime(0.5, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+        osc.start(now);
+        osc.stop(now + 0.3);
+        i += 1;
+        setTimeout(playOne, gapMs);
+      }
+      playOne();
+    } catch (e) { /* audio unavailable, visual flash still fires */ }
+  }
+
+  pauseBtn.onclick = function () {
+    running = !running;
+    pauseBtn.textContent = running ? "Pause" : "Resume";
+    if (running) { requestWake(); } else { releaseWake(); }
+  };
+
+  resetBtn.onclick = function () {
+    if (!current) return;
+    clearTick();
+    remaining = current.totalSec;
+    warnFired = false;
+    doneFired = false;
+    running = true;
+    document.body.className = "";
+    pauseBtn.textContent = "Pause";
+    updateClock();
+    requestWake();
+    tickHandle = setInterval(tick, 1000);
+  };
+
+  function stopAndReturn() {
+    clearTick();
+    running = false;
+    document.body.className = "";
+    releaseWake();
+    showView("list");
+  }
+
+  // Unlock audio on first touch (iOS requires a user gesture)
+  document.addEventListener("touchstart", function unlock() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    }
+    document.removeEventListener("touchstart", unlock);
+  }, { once: true });
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  }
+
+  renderList();
+  showView("list");
+})();
+</script>
+</body>
+</html>
